@@ -29,6 +29,7 @@ export default function TimerApp() {
   const [customMinutes, setCustomMinutes] = useState('');
   const [recent, setRecent] = useState<Preset[]>([]);
   const endAt = useRef<number | null>(null);
+  const audioContext = useRef<AudioContext | null>(null);
   const completed = remaining <= 0;
   const progress = duration ? Math.max(0, Math.min(1, remaining / duration)) : 0;
   const circumference = 2 * Math.PI * 138;
@@ -41,7 +42,8 @@ export default function TimerApp() {
     if (!soundOn) return;
     try {
       const AudioContextClass = window.AudioContext || (window as typeof window & { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      const context = new AudioContextClass();
+      const context = audioContext.current || new AudioContextClass();
+      audioContext.current = context;
       [0, .16, .34].forEach((delay, index) => {
         const oscillator = context.createOscillator();
         const gain = context.createGain();
@@ -88,6 +90,13 @@ export default function TimerApp() {
       return;
     }
     const startFrom = completed ? duration : remaining;
+    if (soundOn) {
+      try {
+        const AudioContextClass = window.AudioContext || (window as typeof window & { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+        audioContext.current = audioContext.current || new AudioContextClass();
+        void audioContext.current.resume();
+      } catch { /* Sound remains optional. */ }
+    }
     setRemaining(startFrom);
     endAt.current = Date.now() + startFrom * 1000;
     setRunning(true);
