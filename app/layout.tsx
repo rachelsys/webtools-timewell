@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "./timer.css";
 
 export const metadata: Metadata = {
-  title: "anything — make something useful",
-  description: "Give anything. Get something useful back.",
+  title: "倒數一下 — 好用的日常倒數計時器",
+  description: "泡麵、茶、咖啡、專注與自訂倒數。選一樣，立刻開始。",
   other: {
   },
   icons: {
@@ -18,7 +19,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="zh-Hant">
       <body className="antialiased">{children}</body>
     </html>
   );
