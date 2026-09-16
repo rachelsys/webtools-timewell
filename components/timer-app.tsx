@@ -1,189 +1,163 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { BellRing, Pause, Play, Plus, RotateCcw, Volume2, VolumeX } from 'lucide-react';
-
-type Preset = { emoji: string; name: string; minutes: number; note: string };
-
-const presets: Preset[] = [
-  { emoji: '🍜', name: '泡麵', minutes: 3, note: '剛剛好的彈牙' },
-  { emoji: '🍵', name: '茶', minutes: 5, note: '讓茶葉慢慢舒展' },
-  { emoji: '☕', name: '咖啡', minutes: 4, note: '手沖的安靜片刻' },
-  { emoji: '🫧', name: '小休息', minutes: 10, note: '離開螢幕一下' },
-  { emoji: '◌', name: '專注', minutes: 25, note: '完成一件重要的事' },
-];
-
-const formatTime = (seconds: number) => {
-  const value = Math.max(0, Math.ceil(seconds));
-  return `${String(Math.floor(value / 60)).padStart(2, '0')}:${String(value % 60).padStart(2, '0')}`;
-};
-
-function TimerLogo() {
-  return <svg viewBox="0 0 40 40" role="img" aria-label="倒數一下圖示">
-    <path className="logo-dial" d="M20 8.5a11.5 11.5 0 1 1-8.13 3.37" />
-    <path className="logo-hand" d="M20 13v7l5 3" />
-    <path className="logo-tick" d="M10.6 7.8 7.7 10.7" />
-    <circle cx="20" cy="20" r="1.7" />
-  </svg>;
-}
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Volume2, VolumeX } from 'lucide-react';
+import { DEFAULT_TIMER } from '@/config/timer-presets';
+import { MUSIC_LIBRARY } from '@/config/music-library';
+import { useAlarm } from '@/hooks/use-alarm';
+import { useBackgroundAudio } from '@/hooks/use-background-audio';
+import { useTimer } from '@/hooks/use-timer';
+import { useTimerNotification } from '@/hooks/use-timer-notification';
+import { formatDuration } from '@/lib/timer/timer-reducer';
+import { DEFAULT_AUDIO_PREFERENCES, loadPersistedApp, savePersistedApp, type AudioPreferences } from '@/lib/timer/timer-storage';
+import type { TimerDefinition } from '@/lib/timer/timer-types';
+import { CustomTimerForm } from './timer/custom-timer-form';
+import { MusicPanel } from './timer/music-panel';
+import { PresetPicker } from './timer/preset-picker';
+import { TimerControls } from './timer/timer-controls';
+import { TimerDisplay } from './timer/timer-display';
+import { TimerLogo } from './timer/timer-logo';
 
 export default function TimerApp() {
-  const [name, setName] = useState('泡麵');
-  const [note, setNote] = useState('剛剛好的彈牙');
-  const [duration, setDuration] = useState(180);
-  const [remaining, setRemaining] = useState(180);
-  const [running, setRunning] = useState(false);
-  const [soundOn, setSoundOn] = useState(true);
-  const [customName, setCustomName] = useState('');
-  const [customMinutes, setCustomMinutes] = useState('');
-  const [recent, setRecent] = useState<Preset[]>([]);
-  const endAt = useRef<number | null>(null);
-  const audioContext = useRef<AudioContext | null>(null);
-  const completed = remaining <= 0;
-  const progress = duration ? Math.max(0, Math.min(1, remaining / duration)) : 0;
-  const circumference = 2 * Math.PI * 138;
+  const timer = useTimer(DEFAULT_TIMER);
+  const [recentTimers, setRecentTimers] = useState<TimerDefinition[]>([]);
+  const [audioPreferences, setAudioPreferences] = useState<AudioPreferences>(DEFAULT_AUDIO_PREFERENCES);
+  const [lastNotifiedRunId, setLastNotifiedRunId] = useState(0);
+  const [hydrated, setHydrated] = useState(false);
+  const previousStatus = useRef(timer.state.timerStatus);
+  const selectedTrack = MUSIC_LIBRARY.find(track => track.id === audioPreferences.selectedTrackId) || MUSIC_LIBRARY[0];
+  const backgroundAudio = useBackgroundAudio({
+    status: timer.state.timerStatus,
+    track: selectedTrack,
+    volume: audioPreferences.volume,
+    muted: audioPreferences.musicMuted,
+  });
+  const alarm = useAlarm(audioPreferences.alarmEnabled);
+  const notification = useTimerNotification(audioPreferences.notificationsEnabled);
 
   useEffect(() => {
-    try { setRecent(JSON.parse(localStorage.getItem('anything-timer-recent') || '[]')); } catch { setRecent([]); }
+    const persisted = loadPersistedApp(timer.state);
+    timer.hydrate(persisted.timer);
+    setRecentTimers(persisted.recentTimers);
+    setAudioPreferences(persisted.audio);
+    setLastNotifiedRunId(persisted.lastNotifiedRunId);
+    setHydrated(true);
+    // Initial hydration is intentionally performed once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const chime = useCallback(() => {
-    if (!soundOn) return;
-    try {
-      const AudioContextClass = window.AudioContext || (window as typeof window & { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      const context = audioContext.current || new AudioContextClass();
-      audioContext.current = context;
-      [0, .16, .34].forEach((delay, index) => {
-        const oscillator = context.createOscillator();
-        const gain = context.createGain();
-        oscillator.frequency.value = [660, 880, 990][index];
-        gain.gain.setValueAtTime(.0001, context.currentTime + delay);
-        gain.gain.exponentialRampToValueAtTime(.16, context.currentTime + delay + .02);
-        gain.gain.exponentialRampToValueAtTime(.0001, context.currentTime + delay + .34);
-        oscillator.connect(gain).connect(context.destination);
-        oscillator.start(context.currentTime + delay);
-        oscillator.stop(context.currentTime + delay + .38);
-      });
-    } catch { /* Sound is optional. */ }
-  }, [soundOn]);
+  const persistenceKey = useMemo(() => JSON.stringify({
+    timer: timer.state.timerStatus === 'running' ? { ...timer.state, remainingTime: -1 } : timer.state,
+    recentTimers,
+    audioPreferences,
+    lastNotifiedRunId,
+  }), [audioPreferences, lastNotifiedRunId, recentTimers, timer.state]);
 
   useEffect(() => {
-    if (!running || !endAt.current) return;
-    const tick = () => {
-      const next = Math.max(0, (endAt.current! - Date.now()) / 1000);
-      setRemaining(next);
-      if (next <= 0) {
-        setRunning(false);
-        endAt.current = null;
-        chime();
-      }
-    };
-    tick();
-    const id = window.setInterval(tick, 250);
-    return () => window.clearInterval(id);
-  }, [running, chime]);
+    if (!hydrated) return;
+    savePersistedApp({ version: 2, timer: timer.state, recentTimers, audio: audioPreferences, lastNotifiedRunId });
+    // persistenceKey excludes live countdown ticks while running.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, persistenceKey]);
 
   useEffect(() => {
-    document.title = running ? `${formatTime(remaining)} · ${name}` : completed ? `好了！· ${name}` : '倒數一下 · anything';
-  }, [remaining, running, completed, name]);
+    if (!hydrated) return;
+    const saveOnExit = () => savePersistedApp({ version: 2, timer: timer.state, recentTimers, audio: audioPreferences, lastNotifiedRunId });
+    window.addEventListener('pagehide', saveOnExit);
+    return () => window.removeEventListener('pagehide', saveOnExit);
+  }, [audioPreferences, hydrated, lastNotifiedRunId, recentTimers, timer.state]);
 
-  const selectPreset = (preset: Preset) => {
-    setRunning(false); endAt.current = null;
-    setName(preset.name); setNote(preset.note);
-    setDuration(preset.minutes * 60); setRemaining(preset.minutes * 60);
-  };
+  useEffect(() => {
+    const justCompleted = previousStatus.current !== 'completed' && timer.state.timerStatus === 'completed';
+    previousStatus.current = timer.state.timerStatus;
+    if (!justCompleted || timer.state.runId <= 0) return;
+    alarm.play();
+    if (timer.state.runId > lastNotifiedRunId) {
+      notification.notify(timer.state.label);
+      setLastNotifiedRunId(timer.state.runId);
+    }
+  }, [alarm, lastNotifiedRunId, notification, timer.state.label, timer.state.runId, timer.state.timerStatus]);
 
-  const toggle = () => {
-    if (running) {
-      setRunning(false); endAt.current = null;
+  useEffect(() => {
+    document.title = timer.state.timerStatus === 'running'
+      ? `${formatDuration(timer.state.remainingTime)} · ${timer.state.label}`
+      : timer.state.timerStatus === 'completed'
+        ? `好了！· ${timer.state.label}`
+        : '倒數一下 · anything';
+  }, [timer.state.label, timer.state.remainingTime, timer.state.timerStatus]);
+
+  const toggleTimer = () => {
+    if (timer.state.timerStatus === 'running') {
+      timer.pause();
       return;
     }
-    const startFrom = completed ? duration : remaining;
-    if (soundOn) {
-      try {
-        const AudioContextClass = window.AudioContext || (window as typeof window & { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-        audioContext.current = audioContext.current || new AudioContextClass();
-        void audioContext.current.resume();
-      } catch { /* Sound remains optional. */ }
-    }
-    setRemaining(startFrom);
-    endAt.current = Date.now() + startFrom * 1000;
-    setRunning(true);
+    alarm.unlock();
+    timer.start();
+    void backgroundAudio.playFromGesture();
   };
 
-  const addThirty = () => {
-    setRemaining(value => value + 30);
-    setDuration(value => Math.max(value, remaining + 30));
-    if (running && endAt.current) endAt.current += 30000;
+  const selectTimer = (next: TimerDefinition) => timer.select(next);
+
+  const createTimer = (next: TimerDefinition) => {
+    timer.select(next);
+    setRecentTimers(current => [next, ...current.filter(item => item.label !== next.label || item.duration !== next.duration)].slice(0, 5));
   };
 
-  const reset = () => {
-    setRunning(false); endAt.current = null; setRemaining(duration);
+  const updateAudio = (patch: Partial<AudioPreferences>) => setAudioPreferences(current => ({ ...current, ...patch }));
+
+  const changeTrack = (trackId: string) => {
+    const next = MUSIC_LIBRARY.find(track => track.id === trackId);
+    if (!next) return;
+    updateAudio({ selectedTrackId: trackId });
+    void backgroundAudio.switchTrackFromGesture(next);
   };
 
-  const applyCustom = () => {
-    const minutes = Math.max(1, Math.min(180, Number(customMinutes) || 1));
-    const preset = { emoji: '✦', name: customName.trim() || '我的倒數', minutes, note: `${minutes} 分鐘，照自己的節奏` };
-    selectPreset(preset);
-    const next = [preset, ...recent.filter(item => item.name !== preset.name || item.minutes !== preset.minutes)].slice(0, 3);
-    setRecent(next);
-    localStorage.setItem('anything-timer-recent', JSON.stringify(next));
-    setCustomName(''); setCustomMinutes('');
+  const changeMusicMuted = (musicMuted: boolean) => {
+    updateAudio({ musicMuted });
+    void backgroundAudio.setMutedFromGesture(musicMuted);
   };
 
-  return <main className={`timer-page ${completed ? 'is-complete' : ''}`}>
+  const requestNotifications = async () => {
+    const granted = await notification.requestPermission();
+    if (granted) updateAudio({ notificationsEnabled: true });
+  };
+
+  return <main className={`timer-page ${timer.state.timerStatus === 'completed' ? 'is-complete' : ''}`}>
     <header className="timer-header">
       <a className="timer-brand" href="/" aria-label="倒數一下首頁">
         <span className="timer-logo"><TimerLogo /></span>
         <span className="timer-brand-copy"><strong>倒數一下</strong><small>日常計時器</small></span>
       </a>
-      <button className="sound-button" onClick={() => setSoundOn(value => !value)} aria-label={soundOn ? '關閉完成音效' : '開啟完成音效'}>{soundOn ? <Volume2 size={17} /> : <VolumeX size={17} />}<span>{soundOn ? '完成時響鈴' : '靜音模式'}</span></button>
+      <button className="sound-button" onClick={() => changeMusicMuted(!audioPreferences.musicMuted)} aria-label={audioPreferences.musicMuted ? '開啟背景音樂' : '關閉背景音樂'}>{audioPreferences.musicMuted ? <VolumeX size={17} /> : <Volume2 size={17} />}<span>{audioPreferences.musicMuted ? '音樂靜音' : '背景音樂'}</span></button>
     </header>
 
     <section className="timer-shell">
       <div className="timer-copy">
-        <div>
-          <p className="timer-kicker"><span />不用盯著時間</p>
-          <h1>選好，按下開始。</h1>
-        </div>
+        <div><p className="timer-kicker"><span />不用盯著時間</p><h1>選好，按下開始。</h1></div>
         <p>泡麵、茶、咖啡或一小段專注。時間到了，我會提醒你。</p>
       </div>
 
       <div className="timer-workspace">
         <section className="timer-stage" aria-live="polite">
-          <div className="stage-label"><span>{running ? '倒數進行中' : completed ? '時間到了' : '準備好了'}</span><strong>{name}</strong></div>
-          <div className="timer-orbit">
-            <svg viewBox="0 0 300 300" aria-hidden="true">
-              <circle className="timer-track" cx="150" cy="150" r="138" />
-              <circle className="timer-progress" cx="150" cy="150" r="138" style={{ strokeDasharray: circumference, strokeDashoffset: circumference * (1 - progress) }} />
-            </svg>
-            <div className="timer-readout">
-              <span className="timer-emoji">{completed ? '✓' : presets.find(item => item.name === name)?.emoji || '✦'}</span>
-              <span className="timer-name">{name}</span>
-              <strong>{formatTime(remaining)}</strong>
-              <span className="timer-status">{completed ? '好了，可以回來了' : running ? '正在安靜倒數' : remaining < duration ? '已暫停' : note}</span>
-            </div>
-          </div>
-          <div className="timer-controls">
-            <button className="secondary-control" onClick={reset} aria-label="重設倒數"><RotateCcw size={18} /><span>重設</span></button>
-            <button className="primary-control" onClick={toggle}>{running ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" />}{completed ? '再來一次' : running ? '暫停' : '開始倒數'}</button>
-            <button className="secondary-control" onClick={addThirty} aria-label="增加 30 秒"><Plus size={18} /><span>30 秒</span></button>
-          </div>
+          <TimerDisplay state={timer.state} />
+          <TimerControls state={timer.state} onToggle={toggleTimer} onAdjust={timer.adjust} onReset={timer.reset} onRestoreOriginal={timer.restoreOriginal} />
         </section>
 
         <aside className="timer-side">
-          <section className="preset-panel">
-            <div className="section-heading"><div><span>QUICK START</span><h2>快速選一個</h2></div><small>點一下就切換</small></div>
-            <div className="preset-grid">
-              {presets.map(preset => <button key={preset.name} aria-pressed={name === preset.name} className={name === preset.name ? 'preset-card active' : 'preset-card'} onClick={() => selectPreset(preset)}><span>{preset.emoji}</span><div><strong>{preset.name}</strong><small>{preset.minutes} 分鐘</small></div></button>)}
-            </div>
-            {recent.length > 0 && <div className="recent-row"><span>最近使用</span>{recent.map(item => <button key={`${item.name}-${item.minutes}`} onClick={() => selectPreset(item)}>{item.name} · {item.minutes} 分</button>)}</div>}
-          </section>
-
-          <section className="custom-panel">
-            <div className="custom-title"><span><BellRing size={18} /></span><div><h2>自己的倒數</h2><p>取個名字，下次可以一鍵再用。</p></div></div>
-            <div className="custom-fields"><label>品項名稱<input value={customName} onChange={event => setCustomName(event.target.value)} placeholder="例如：敷面膜" /></label><label>分鐘<input value={customMinutes} onChange={event => setCustomMinutes(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') applyCustom(); }} type="number" min="1" max="180" placeholder="15" /></label><button onClick={applyCustom}>建立倒數 <Plus size={17} /></button></div>
-          </section>
+          <PresetPicker selectedId={timer.state.timerId} recentTimers={recentTimers} onSelect={selectTimer} />
+          <CustomTimerForm onCreate={createTimer} />
+          <MusicPanel
+            preferences={audioPreferences}
+            permission={notification.permission}
+            needsInteraction={backgroundAudio.needsInteraction}
+            onTrackChange={changeTrack}
+            onVolumeChange={volume => updateAudio({ volume })}
+            onMusicMutedChange={changeMusicMuted}
+            onAlarmEnabledChange={alarmEnabled => updateAudio({ alarmEnabled })}
+            onNotificationsChange={notificationsEnabled => updateAudio({ notificationsEnabled })}
+            onRequestNotifications={() => void requestNotifications()}
+            onResumeAudio={() => void backgroundAudio.playFromGesture()}
+          />
         </aside>
       </div>
     </section>
