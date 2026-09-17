@@ -1,7 +1,8 @@
 import { formatDuration } from '@/lib/timer/timer-reducer';
 import type { TimerState } from '@/lib/timer/timer-types';
+import type { TimerExperience } from '@/config/timer-experiences';
 
-export function TimerDisplay({ state }: { state: TimerState }) {
+export function TimerDisplay({ state, experience }: { state: TimerState; experience: TimerExperience }) {
   const circumference = 2 * Math.PI * 138;
   const progress = state.currentDuration
     ? Math.max(0, Math.min(1, state.remainingTime / state.currentDuration))
@@ -14,9 +15,9 @@ export function TimerDisplay({ state }: { state: TimerState }) {
         ? '時間到了'
         : '準備好了';
   const detail = state.timerStatus === 'completed'
-    ? '好了，可以回來了'
+    ? experience.completeCopy
     : state.timerStatus === 'running'
-      ? '正在安靜倒數'
+      ? experience.startCopy
       : state.timerStatus === 'paused'
         ? '等你回來繼續'
         : state.note;
@@ -37,4 +38,3 @@ export function TimerDisplay({ state }: { state: TimerState }) {
     </div>
   </>;
 }
-

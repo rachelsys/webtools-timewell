@@ -68,6 +68,9 @@
 
 .timer-workspace { display: grid; grid-template-columns: minmax(0, 1.18fr) minmax(330px, .82fr); align-items: stretch; gap: 20px; }
 .timer-stage {
+  --experience-accent: var(--coral);
+  --experience-accent-deep: var(--coral-deep);
+  --experience-glow: rgba(255, 115, 88, .34);
   position: relative;
   min-height: 590px;
   padding: 24px 34px 34px;
@@ -82,7 +85,12 @@
   color: var(--navy);
   box-shadow: 0 28px 80px rgba(0, 0, 0, .32);
 }
-.timer-stage::after { content: ""; position: absolute; right: -54px; bottom: -68px; width: 190px; height: 190px; border: 35px solid rgba(255, 115, 88, .07); border-radius: 50%; pointer-events: none; }
+.timer-stage::after { content: ""; position: absolute; right: -54px; bottom: -68px; width: 190px; height: 190px; border: 35px solid color-mix(in srgb, var(--experience-accent) 16%, transparent); border-radius: 50%; pointer-events: none; }
+.timer-stage::before { content: ""; position: absolute; z-index: 0; width: 52%; aspect-ratio: 1; border: 2px solid var(--experience-accent); border-radius: 50%; opacity: 0; pointer-events: none; }
+.timer-stage.is-ritual-active::before { animation: ritualRipple .8s ease-out both; }
+.timer-stage.experience-pulse.is-ritual-active::before { animation-name: ritualPulse; }
+.timer-stage.experience-breathe.is-ritual-active::before { animation-name: ritualBreathe; }
+.timer-stage.experience-focus.is-ritual-active::before { animation-name: ritualFocus; }
 .stage-label { position: absolute; top: 26px; left: 30px; right: 30px; display: flex; align-items: center; justify-content: space-between; color: #817e91; font-size: 12px; }
 .stage-label span { letter-spacing: .08em; }
 .stage-label strong { color: #34354d; font-size: 13px; }
@@ -92,7 +100,7 @@
 .timer-track,
 .timer-progress { fill: none; stroke-width: 8; }
 .timer-track { stroke: #ddd9e5; }
-.timer-progress { stroke: var(--coral); stroke-linecap: round; transition: stroke-dashoffset .25s linear; }
+.timer-progress { stroke: var(--experience-accent); stroke-linecap: round; transition: stroke-dashoffset .25s linear, stroke .35s ease; }
 .timer-readout { position: relative; display: flex; flex-direction: column; align-items: center; }
 .timer-emoji { margin-bottom: 8px; font-size: 31px; line-height: 1; }
 .timer-name { color: #747286; font-size: 15px; font-weight: 700; }
@@ -103,7 +111,7 @@
 .timer-controls { display: flex; align-items: center; gap: 11px; }
 .timer-controls button { height: 52px; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 14px; font-weight: 700; cursor: pointer; transition: transform .18s ease, box-shadow .18s ease, background .18s ease; }
 .timer-controls button:hover { transform: translateY(-1px); }
-.primary-control { min-width: 176px; border: 0; background: linear-gradient(145deg, var(--coral), var(--coral-deep)); color: #fff; box-shadow: 0 11px 25px rgba(255, 115, 88, .32); }
+.primary-control { min-width: 176px; border: 0; background: linear-gradient(145deg, var(--experience-accent), var(--experience-accent-deep)); color: #fff; box-shadow: 0 11px 25px var(--experience-glow); }
 .time-adjust { min-width: 78px; padding: 0 13px; border: 1px solid #d7d2df; background: rgba(255, 255, 255, .78); color: #4d4b60; font-size: 16px; }
 .time-adjust span { font-size: 12px; font-weight: 600; }
 .reset-row { display: flex; align-items: center; justify-content: center; gap: 6px; }
@@ -175,10 +183,15 @@
 .resume-audio { width: 100%; margin-top: 8px; }
 .resume-audio { border-color: #ff9c87; color: #fff; }
 .audio-note { margin: 11px 1px 0; color: #888eae; font-size: 11px; line-height: 1.5; }
+.music-remembered { margin: 10px 1px 0; color: #ffb09f; font-size: 12px; line-height: 1.4; }
 
 .is-complete .timer-stage { animation: timerGlow 1.6s ease-in-out infinite alternate; }
 .is-complete .timer-progress { stroke: #52b788; }
 @keyframes timerGlow { to { box-shadow: 0 28px 85px rgba(82, 183, 136, .28); } }
+@keyframes ritualRipple { 0% { opacity: .82; transform: scale(.36); box-shadow: 0 0 0 0 var(--experience-glow); } 100% { opacity: 0; transform: scale(2.15); box-shadow: 0 0 45px 22px transparent; } }
+@keyframes ritualPulse { 0%, 100% { opacity: 0; transform: scale(.7); } 32% { opacity: .62; transform: scale(1.08); box-shadow: 0 0 44px 12px var(--experience-glow); } 60% { opacity: .18; transform: scale(1.36); } }
+@keyframes ritualBreathe { 0% { opacity: .15; transform: scale(.7); } 45% { opacity: .58; transform: scale(1.15); box-shadow: 0 0 52px 18px var(--experience-glow); } 100% { opacity: 0; transform: scale(1.46); } }
+@keyframes ritualFocus { 0% { opacity: .05; transform: scale(1.34); } 44% { opacity: .72; transform: scale(.86); box-shadow: 0 0 38px 10px var(--experience-glow); } 100% { opacity: 0; transform: scale(.68); } }
 .timer-page button:focus-visible,
 .timer-page a:focus-visible,
 .timer-page input:focus-visible { outline: 3px solid #ffb5a5; outline-offset: 3px; }

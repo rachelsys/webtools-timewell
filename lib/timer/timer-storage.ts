@@ -1,4 +1,5 @@
-import { DEFAULT_TRACK_ID, MUSIC_LIBRARY } from '@/config/music-library';
+import { DEFAULT_TRACK_ID, MUSIC_LIBRARY } from '../../config/music-library.ts';
+import { getTimerExperience } from '../../config/timer-experiences.ts';
 import type { TimerDefinition, TimerState, TimerStatus } from './timer-types';
 
 export const APP_STORAGE_KEY = 'anything-useful:v2';
@@ -6,6 +7,7 @@ const LEGACY_RECENT_KEY = 'anything-timer-recent';
 
 export type AudioPreferences = {
   selectedTrackId: string;
+  trackByTimerId: Record<string, string>;
   volume: number;
   musicMuted: boolean;
   alarmEnabled: boolean;
@@ -22,11 +24,28 @@ export type PersistedAppState = {
 
 export const DEFAULT_AUDIO_PREFERENCES: AudioPreferences = {
   selectedTrackId: DEFAULT_TRACK_ID,
+  trackByTimerId: {},
   volume: 0.45,
   musicMuted: false,
   alarmEnabled: true,
   notificationsEnabled: false,
 };
+
+const isTrackId = (value: unknown): value is string => typeof value === 'string' && MUSIC_LIBRARY.some(track => track.id === value);
+
+export function getTrackIdForTimer(preferences: AudioPreferences, timerId: string): string {
+  const remembered = preferences.trackByTimerId[timerId];
+  if (isTrackId(remembered)) return remembered;
+  const experience = getTimerExperience(timerId);
+  const defaultTrack = experience.defaultCategory && MUSIC_LIBRARY.find(track => track.category === experience.defaultCategory);
+  if (defaultTrack) return defaultTrack.id;
+  return isTrackId(preferences.selectedTrackId) ? preferences.selectedTrackId : DEFAULT_TRACK_ID;
+}
+
+function normalizeTrackMap(value: unknown): Record<string, string> {
+  if (!isObject(value)) return {};
+  return Object.fromEntries(Object.entries(value).filter(([timerId, trackId]) => timerId.length > 0 && isTrackId(trackId)));
+}
 
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
 const numberOr = (value: unknown, fallback: number) => typeof value === 'number' && Number.isFinite(value) ? value : fallback;
@@ -84,7 +103,7 @@ export function loadPersistedApp(fallbackTimer: TimerState): PersistedAppState {
     const parsed: unknown = JSON.parse(localStorage.getItem(APP_STORAGE_KEY) || 'null');
     if (isObject(parsed) && parsed.version === 2) {
       const audio = isObject(parsed.audio) ? parsed.audio : {};
-      const selectedTrackId = typeof audio.selectedTrackId === 'string' && MUSIC_LIBRARY.some(track => track.id === audio.selectedTrackId)
+      const selectedTrackId = isTrackId(audio.selectedTrackId)
         ? audio.selectedTrackId
         : DEFAULT_TRACK_ID;
       return {
@@ -93,6 +112,7 @@ export function loadPersistedApp(fallbackTimer: TimerState): PersistedAppState {
         recentTimers: normalizeRecent(parsed.recentTimers),
         audio: {
           selectedTrackId,
+          trackByTimerId: normalizeTrackMap(audio.trackByTimerId),
           volume: Math.min(1, Math.max(0, numberOr(audio.volume, DEFAULT_AUDIO_PREFERENCES.volume))),
           musicMuted: typeof audio.musicMuted === 'boolean' ? audio.musicMuted : false,
           alarmEnabled: typeof audio.alarmEnabled === 'boolean' ? audio.alarmEnabled : true,
@@ -114,4 +134,3 @@ export function savePersistedApp(value: PersistedAppState) {
   if (typeof window === 'undefined') return;
   try { localStorage.setItem(APP_STORAGE_KEY, JSON.stringify(value)); } catch { /* Storage is optional. */ }
 }
-

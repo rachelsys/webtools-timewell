@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Bell, ChevronDown, Music2, Volume2, VolumeX } from 'lucide-react';
 import { MUSIC_CATEGORIES, MUSIC_LIBRARY, type MusicCategory } from '@/config/music-library';
 import type { AudioPreferences } from '@/lib/timer/timer-storage';
@@ -16,13 +16,16 @@ type Props = {
   onNotificationsChange: (enabled: boolean) => void;
   onRequestNotifications: () => void;
   onResumeAudio: () => void;
+  rememberedMessage: string;
 };
 
-export function MusicPanel({ preferences, permission, needsInteraction, onTrackChange, onVolumeChange, onMusicMutedChange, onAlarmEnabledChange, onNotificationsChange, onRequestNotifications, onResumeAudio }: Props) {
+export function MusicPanel({ preferences, permission, needsInteraction, onTrackChange, onVolumeChange, onMusicMutedChange, onAlarmEnabledChange, onNotificationsChange, onRequestNotifications, onResumeAudio, rememberedMessage }: Props) {
   const [open, setOpen] = useState(false);
   const selected = MUSIC_LIBRARY.find(track => track.id === preferences.selectedTrackId) || MUSIC_LIBRARY[0];
   const [category, setCategory] = useState<MusicCategory>(selected.category);
   const tracks = useMemo(() => MUSIC_LIBRARY.filter(track => track.category === category), [category]);
+
+  useEffect(() => setCategory(selected.category), [selected.category]);
 
   const changeCategory = (nextCategory: MusicCategory) => {
     setCategory(nextCategory);
@@ -51,6 +54,7 @@ export function MusicPanel({ preferences, permission, needsInteraction, onTrackC
       {permission === 'denied' && <p className="audio-note">瀏覽器已封鎖桌面提醒，可從網址列設定中重新開啟。</p>}
       {permission === 'unsupported' && <p className="audio-note">此瀏覽器不支援桌面提醒。</p>}
       {needsInteraction && <button className="resume-audio" onClick={onResumeAudio}>點一下恢復背景音</button>}
+      {rememberedMessage && <p className="music-remembered" role="status">{rememberedMessage}</p>}
       <p className="audio-note">音樂會循環播放，並跟著倒數暫停、繼續與停止。</p>
     </div>}
   </section>;

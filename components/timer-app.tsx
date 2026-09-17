@@ -1,15 +1,17 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Volume2, VolumeX } from 'lucide-react';
 import { DEFAULT_TIMER } from '@/config/timer-presets';
 import { MUSIC_LIBRARY } from '@/config/music-library';
+import { getTimerExperience } from '@/config/timer-experiences';
 import { useAlarm } from '@/hooks/use-alarm';
 import { useBackgroundAudio } from '@/hooks/use-background-audio';
+import { useStartCue } from '@/hooks/use-start-cue';
 import { useTimer } from '@/hooks/use-timer';
 import { useTimerNotification } from '@/hooks/use-timer-notification';
 import { formatDuration } from '@/lib/timer/timer-reducer';
-import { DEFAULT_AUDIO_PREFERENCES, loadPersistedApp, savePersistedApp, type AudioPreferences } from '@/lib/timer/timer-storage';
+import { DEFAULT_AUDIO_PREFERENCES, getTrackIdForTimer, loadPersistedApp, savePersistedApp, type AudioPreferences } from '@/lib/timer/timer-storage';
 import type { TimerDefinition } from '@/lib/timer/timer-types';
 import { CustomTimerForm } from './timer/custom-timer-form';
 import { MusicPanel } from './timer/music-panel';
@@ -24,8 +26,11 @@ export default function TimerApp() {
   const [audioPreferences, setAudioPreferences] = useState<AudioPreferences>(DEFAULT_AUDIO_PREFERENCES);
   const [lastNotifiedRunId, setLastNotifiedRunId] = useState(0);
   const [hydrated, setHydrated] = useState(false);
+  const [ritualActive, setRitualActive] = useState(false);
+  const [rememberedMessage, setRememberedMessage] = useState('');
   const previousStatus = useRef(timer.state.timerStatus);
-  const selectedTrack = MUSIC_LIBRARY.find(track => track.id === audioPreferences.selectedTrackId) || MUSIC_LIBRARY[0];
+  const experience = getTimerExperience(timer.state.timerId);
+  const selectedTrack = MUSIC_LIBRARY.find(track => track.id === getTrackIdForTimer(audioPreferences, timer.state.timerId)) || MUSIC_LIBRARY[0];
   const backgroundAudio = useBackgroundAudio({
     status: timer.state.timerStatus,
     track: selectedTrack,
@@ -33,6 +38,7 @@ export default function TimerApp() {
     muted: audioPreferences.musicMuted,
   });
   const alarm = useAlarm(audioPreferences.alarmEnabled);
+  const startCue = useStartCue({ muted: audioPreferences.musicMuted, volume: audioPreferences.volume });
   const notification = useTimerNotification(audioPreferences.notificationsEnabled);
 
   useEffect(() => {
@@ -86,14 +92,34 @@ export default function TimerApp() {
         : '倒數一下 · anything';
   }, [timer.state.label, timer.state.remainingTime, timer.state.timerStatus]);
 
+  useEffect(() => {
+    if (!ritualActive) return;
+    const timeout = window.setTimeout(() => setRitualActive(false), 800);
+    return () => window.clearTimeout(timeout);
+  }, [ritualActive]);
+
+  useEffect(() => {
+    if (!rememberedMessage) return;
+    const timeout = window.setTimeout(() => setRememberedMessage(''), 2400);
+    return () => window.clearTimeout(timeout);
+  }, [rememberedMessage]);
+
   const toggleTimer = () => {
     if (timer.state.timerStatus === 'running') {
       timer.pause();
       return;
     }
     alarm.unlock();
+    if (timer.state.timerStatus === 'paused') {
+      timer.start();
+      void backgroundAudio.playFromGesture();
+      return;
+    }
+    startCue.unlock();
+    startCue.play(experience.cue);
+    backgroundAudio.playAfterCueFromGesture(experience.cueDuration);
+    setRitualActive(true);
     timer.start();
-    void backgroundAudio.playFromGesture();
   };
 
   const selectTimer = (next: TimerDefinition) => timer.select(next);
@@ -103,12 +129,13 @@ export default function TimerApp() {
     setRecentTimers(current => [next, ...current.filter(item => item.label !== next.label || item.duration !== next.duration)].slice(0, 5));
   };
 
-  const updateAudio = (patch: Partial<AudioPreferences>) => setAudioPreferences(current => ({ ...current, ...patch }));
+  const updateAudio = (patch: Partial<AudioPreferences> | ((current: AudioPreferences) => AudioPreferences)) => setAudioPreferences(current => typeof patch === 'function' ? patch(current) : ({ ...current, ...patch }));
 
   const changeTrack = (trackId: string) => {
     const next = MUSIC_LIBRARY.find(track => track.id === trackId);
     if (!next) return;
-    updateAudio({ selectedTrackId: trackId });
+    updateAudio(current => ({ ...current, selectedTrackId: trackId, trackByTimerId: { ...current.trackByTimerId, [timer.state.timerId]: trackId } }));
+    setRememberedMessage(`已記住「${timer.state.label}」的音樂`);
     void backgroundAudio.switchTrackFromGesture(next);
   };
 
@@ -138,8 +165,8 @@ export default function TimerApp() {
       </div>
 
       <div className="timer-workspace">
-        <section className="timer-stage" aria-live="polite">
-          <TimerDisplay state={timer.state} />
+        <section className={`timer-stage experience-${experience.motion} ${ritualActive ? 'is-ritual-active' : ''}`} aria-live="polite" style={{ '--experience-accent': experience.accent, '--experience-accent-deep': experience.accentDeep, '--experience-glow': experience.glow } as CSSProperties}>
+          <TimerDisplay state={timer.state} experience={experience} />
           <TimerControls state={timer.state} onToggle={toggleTimer} onAdjust={timer.adjust} onReset={timer.reset} onRestoreOriginal={timer.restoreOriginal} />
         </section>
 
@@ -157,6 +184,7 @@ export default function TimerApp() {
             onNotificationsChange={notificationsEnabled => updateAudio({ notificationsEnabled })}
             onRequestNotifications={() => void requestNotifications()}
             onResumeAudio={() => void backgroundAudio.playFromGesture()}
+            rememberedMessage={rememberedMessage}
           />
         </aside>
       </div>
