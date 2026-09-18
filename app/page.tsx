@@ -1,2 +1,3 @@
-import TimerApp from '@/components/timer-app';
-export default function Home(){return <TimerApp/>}
+import SiteRouter from '@/components/site-router';
+
+export default function Home() { return <SiteRouter />; }
