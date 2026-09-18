@@ -18,7 +18,7 @@ import { MusicPanel } from './timer/music-panel';
 import { PresetPicker } from './timer/preset-picker';
 import { TimerControls } from './timer/timer-controls';
 import { TimerDisplay } from './timer/timer-display';
-import { TimerLogo } from './timer/timer-logo';
+import { SiteHeader } from './site-header';
 
 export default function TimerApp() {
   const timer = useTimer(DEFAULT_TIMER);
@@ -61,14 +61,14 @@ export default function TimerApp() {
 
   useEffect(() => {
     if (!hydrated) return;
-    savePersistedApp({ version: 2, timer: timer.state, recentTimers, audio: audioPreferences, lastNotifiedRunId });
+    savePersistedApp({ version: 3, timer: timer.state, recentTimers, audio: audioPreferences, lastNotifiedRunId });
     // persistenceKey excludes live countdown ticks while running.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hydrated, persistenceKey]);
 
   useEffect(() => {
     if (!hydrated) return;
-    const saveOnExit = () => savePersistedApp({ version: 2, timer: timer.state, recentTimers, audio: audioPreferences, lastNotifiedRunId });
+    const saveOnExit = () => savePersistedApp({ version: 3, timer: timer.state, recentTimers, audio: audioPreferences, lastNotifiedRunId });
     window.addEventListener('pagehide', saveOnExit);
     return () => window.removeEventListener('pagehide', saveOnExit);
   }, [audioPreferences, hydrated, lastNotifiedRunId, recentTimers, timer.state]);
@@ -150,13 +150,7 @@ export default function TimerApp() {
   };
 
   return <main className={`timer-page ${timer.state.timerStatus === 'completed' ? 'is-complete' : ''}`}>
-    <header className="timer-header">
-      <a className="timer-brand" href="/" aria-label="倒數一下首頁">
-        <span className="timer-logo"><TimerLogo /></span>
-        <span className="timer-brand-copy"><strong>倒數一下</strong><small>日常計時器</small></span>
-      </a>
-      <button className="sound-button" onClick={() => changeMusicMuted(!audioPreferences.musicMuted)} aria-label={audioPreferences.musicMuted ? '開啟背景音樂' : '關閉背景音樂'}>{audioPreferences.musicMuted ? <VolumeX size={17} /> : <Volume2 size={17} />}<span>{audioPreferences.musicMuted ? '音樂靜音' : '背景音樂'}</span></button>
-    </header>
+    <SiteHeader current="quick" action={<button className="sound-button" onClick={() => changeMusicMuted(!audioPreferences.musicMuted)} aria-label={audioPreferences.musicMuted ? '開啟背景音樂' : '關閉背景音樂'}>{audioPreferences.musicMuted ? <VolumeX size={17} /> : <Volume2 size={17} />}<span>{audioPreferences.musicMuted ? '音樂靜音' : '背景音樂'}</span></button>} />
 
     <section className="timer-shell">
       <div className="timer-copy">

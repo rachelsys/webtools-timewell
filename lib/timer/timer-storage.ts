@@ -2,7 +2,8 @@ import { DEFAULT_TRACK_ID, MUSIC_LIBRARY } from '../../config/music-library.ts';
 import { getTimerExperience } from '../../config/timer-experiences.ts';
 import type { TimerDefinition, TimerState, TimerStatus } from './timer-types';
 
-export const APP_STORAGE_KEY = 'anything-useful:v2';
+export const APP_STORAGE_KEY = 'anything-useful:app:v3';
+export const LEGACY_APP_STORAGE_KEY = 'anything-useful:v2';
 const LEGACY_RECENT_KEY = 'anything-timer-recent';
 
 export type AudioPreferences = {
@@ -15,7 +16,7 @@ export type AudioPreferences = {
 };
 
 export type PersistedAppState = {
-  version: 2;
+  version: 3;
   timer: TimerState;
   recentTimers: TimerDefinition[];
   audio: AudioPreferences;
@@ -91,7 +92,7 @@ function normalizeRecent(value: unknown): TimerDefinition[] {
 
 export function loadPersistedApp(fallbackTimer: TimerState): PersistedAppState {
   const fallback: PersistedAppState = {
-    version: 2,
+    version: 3,
     timer: fallbackTimer,
     recentTimers: [],
     audio: DEFAULT_AUDIO_PREFERENCES,
@@ -100,14 +101,15 @@ export function loadPersistedApp(fallbackTimer: TimerState): PersistedAppState {
   if (typeof window === 'undefined') return fallback;
 
   try {
-    const parsed: unknown = JSON.parse(localStorage.getItem(APP_STORAGE_KEY) || 'null');
-    if (isObject(parsed) && parsed.version === 2) {
+    const raw = localStorage.getItem(APP_STORAGE_KEY) || localStorage.getItem(LEGACY_APP_STORAGE_KEY);
+    const parsed: unknown = JSON.parse(raw || 'null');
+    if (isObject(parsed) && (parsed.version === 2 || parsed.version === 3)) {
       const audio = isObject(parsed.audio) ? parsed.audio : {};
       const selectedTrackId = isTrackId(audio.selectedTrackId)
         ? audio.selectedTrackId
         : DEFAULT_TRACK_ID;
       return {
-        version: 2,
+        version: 3,
         timer: normalizeTimer(parsed.timer, fallbackTimer),
         recentTimers: normalizeRecent(parsed.recentTimers),
         audio: {
@@ -133,4 +135,11 @@ export function loadPersistedApp(fallbackTimer: TimerState): PersistedAppState {
 export function savePersistedApp(value: PersistedAppState) {
   if (typeof window === 'undefined') return;
   try { localStorage.setItem(APP_STORAGE_KEY, JSON.stringify(value)); } catch { /* Storage is optional. */ }
+}
+
+export function patchPersistedAudioPreferences(patch: Partial<AudioPreferences>, fallbackTimer: TimerState) {
+  const current = loadPersistedApp(fallbackTimer);
+  const next = { ...current, audio: { ...current.audio, ...patch } };
+  savePersistedApp(next);
+  return next.audio;
 }
