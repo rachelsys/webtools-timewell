@@ -44,3 +44,7 @@ next-env.d.ts
 /.codex/
 /outputs/
 /work/
+
+# Local Sites / Cloudflare deployment packages and generated archives.
+/_site-package-*/
+/*.tar.gz
