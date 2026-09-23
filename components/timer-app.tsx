@@ -150,7 +150,7 @@ export default function TimerApp() {
   };
 
   return <main className={`timer-page ${timer.state.timerStatus === 'completed' ? 'is-complete' : ''}`}>
-    <SiteHeader current="quick" action={<button className="sound-button" onClick={() => changeMusicMuted(!audioPreferences.musicMuted)} aria-label={audioPreferences.musicMuted ? '開啟背景音樂' : '關閉背景音樂'}>{audioPreferences.musicMuted ? <VolumeX size={17} /> : <Volume2 size={17} />}<span>{audioPreferences.musicMuted ? '音樂靜音' : '背景音樂'}</span></button>} />
+    <SiteHeader current="quick" shareMinutes={timer.state.timerStatus === 'completed' ? timer.state.currentDuration / 60_000 : undefined} action={<button className="sound-button" onClick={() => changeMusicMuted(!audioPreferences.musicMuted)} aria-label={audioPreferences.musicMuted ? '開啟背景音樂' : '關閉背景音樂'}>{audioPreferences.musicMuted ? <VolumeX size={17} /> : <Volume2 size={17} />}<span>{audioPreferences.musicMuted ? '音樂靜音' : '背景音樂'}</span></button>} />
 
     <section className="timer-shell">
       <div className="timer-copy">

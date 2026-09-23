@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="80" y1="40" x2="1110" y2="620" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#252b50"/>
+      <stop offset="0.52" stop-color="#191d37"/>
+      <stop offset="1" stop-color="#101326"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="710" y1="140" x2="1010" y2="500" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFB16B"/>
+      <stop offset="1" stop-color="#FF7358"/>
+    </linearGradient>
+    <filter id="shadow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="24"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="630" rx="36" fill="url(#bg)"/>
+  <circle cx="1050" cy="45" r="250" fill="#6874C2" opacity=".16"/>
+  <circle cx="160" cy="630" r="250" fill="#FF7358" opacity=".08"/>
+  <g transform="translate(78 72)">
+    <rect width="62" height="62" rx="19" fill="url(#accent)"/>
+    <circle cx="31" cy="32" r="18" fill="none" stroke="#fff" stroke-width="4"/>
+    <path d="M31 20v13l9 6" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M24 10h14" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round"/>
+  </g>
+  <text x="160" y="102" fill="#FFFFFF" font-family="Arial, 'Noto Sans TC', sans-serif" font-size="29" font-weight="700">留時 Timewell</text>
+  <text x="78" y="245" fill="#FFB09F" font-family="Arial, 'Noto Sans TC', sans-serif" font-size="20" font-weight="700" letter-spacing="3">不用登入・打開即用</text>
+  <text x="78" y="322" fill="#FFFFFF" font-family="Georgia, 'Noto Serif TC', serif" font-size="57" font-weight="500">為值得的事，</text>
+  <text x="78" y="393" fill="#FFFFFF" font-family="Georgia, 'Noto Serif TC', serif" font-size="57" font-weight="500">留一段剛好的時間。</text>
+  <text x="81" y="467" fill="#B9BDD6" font-family="Arial, 'Noto Sans TC', sans-serif" font-size="23">泡麵・喝茶・咖啡・專注</text>
+  <circle cx="895" cy="324" r="190" fill="#FF7358" opacity=".14" filter="url(#shadow)"/>
+  <circle cx="895" cy="324" r="174" fill="#F8F5EF"/>
+  <circle cx="895" cy="324" r="143" fill="none" stroke="#E1DDE5" stroke-width="12"/>
+  <path d="M895 181a143 143 0 1 1-124 71" fill="none" stroke="url(#accent)" stroke-width="12" stroke-linecap="round"/>
+  <text x="895" y="345" fill="#20233E" text-anchor="middle" font-family="Georgia, serif" font-size="76" font-weight="500">05:00</text>
+  <text x="895" y="386" fill="#77798E" text-anchor="middle" font-family="Arial, 'Noto Sans TC', sans-serif" font-size="18">一段剛好的時間</text>
+  <text x="78" y="568" fill="#7F85A7" font-family="Arial, sans-serif" font-size="17" letter-spacing="2">TIMEWELL</text>
+</svg>

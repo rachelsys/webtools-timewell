@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
 import { TimerLogo } from './timer/timer-logo';
+import { ShareButton } from './share-button';
 
-export function SiteHeader({ current, action }: { current: 'quick' | 'focus' | 'records'; action?: ReactNode }) {
+export function SiteHeader({ current, action, shareMinutes }: { current: 'quick' | 'focus' | 'records'; action?: ReactNode; shareMinutes?: number }) {
   return <header className="timer-header site-header">
     <a className="timer-brand" href="/" aria-label="倒數一下首頁">
       <span className="timer-logo"><TimerLogo /></span>
@@ -12,6 +13,6 @@ export function SiteHeader({ current, action }: { current: 'quick' | 'focus' | '
       <a href="/focus" aria-current={current === 'focus' ? 'page' : undefined}>專注模式</a>
       <a href="/records" aria-current={current === 'records' ? 'page' : undefined}>我的紀錄</a>
     </nav>
-    <div className="header-action">{action}</div>
+    <div className="header-action"><ShareButton completedMinutes={shareMinutes} />{action}</div>
   </header>;
 }

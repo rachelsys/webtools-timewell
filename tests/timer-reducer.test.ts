@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createTimerState, getRemainingTime, timerReducer } from '../lib/timer/timer-reducer.ts';
+import { createTimerState, formatDuration, getRemainingTime, timerReducer } from '../lib/timer/timer-reducer.ts';
 import type { TimerDefinition } from '../lib/timer/timer-types.ts';
 
 const FIVE_MINUTES = 5 * 60_000;
@@ -68,4 +68,37 @@ test('hydration reconciles a background timer against the current timestamp', ()
   const hydrated = timerReducer(fresh(), { type: 'hydrate', state: running, now: 70_000 });
   assert.equal(hydrated.timerStatus, 'running');
   assert.equal(hydrated.remainingTime, 4 * 60_000);
+});
+
+test('hydration completes a timer that expired while the page was inactive', () => {
+  const running = timerReducer(fresh(), { type: 'start', now: 10_000 });
+  const hydrated = timerReducer(fresh(), { type: 'hydrate', state: running, now: 10_000 + FIVE_MINUTES });
+  assert.equal(hydrated.timerStatus, 'completed');
+  assert.equal(hydrated.remainingTime, 0);
+  assert.equal(hydrated.endTime, null);
+});
+
+test('starting a completed timer begins a new run at currentDuration', () => {
+  const completed = timerReducer(
+    timerReducer(fresh(), { type: 'start', now: 0 }),
+    { type: 'tick', now: FIVE_MINUTES },
+  );
+  const restarted = timerReducer(completed, { type: 'start', now: 1_000_000 });
+  assert.equal(restarted.timerStatus, 'running');
+  assert.equal(restarted.remainingTime, FIVE_MINUTES);
+  assert.equal(restarted.endTime, 1_000_000 + FIVE_MINUTES);
+  assert.equal(restarted.runId, completed.runId + 1);
+});
+
+test('duration adjustments respect the one-minute minimum', () => {
+  const adjusted = timerReducer(fresh(), { type: 'adjust', delta: -FIVE_MINUTES, now: 0 });
+  assert.equal(adjusted.currentDuration, 60_000);
+  assert.equal(adjusted.remainingTime, 60_000);
+  assert.equal(adjusted.timerStatus, 'idle');
+});
+
+test('formatDuration rounds partial seconds up and never displays negative time', () => {
+  assert.equal(formatDuration(60_001), '01:01');
+  assert.equal(formatDuration(60_000), '01:00');
+  assert.equal(formatDuration(-1), '00:00');
 });

@@ -157,7 +157,7 @@ export default function FocusApp() {
   };
 
   return <main className={`timer-page focus-page ${timer.state.timerStatus === 'completed' ? 'is-complete' : ''}`}>
-    <SiteHeader current="focus" action={<button className="sound-button" onClick={toggleMute}>{audio.musicMuted ? <VolumeX size={17} /> : <Volume2 size={17} />}<span>{audio.musicMuted ? '音樂靜音' : '背景音樂'}</span></button>} />
+    <SiteHeader current="focus" shareMinutes={pending ? pending.actualDurationSec / 60 : undefined} action={<button className="sound-button" onClick={toggleMute}>{audio.musicMuted ? <VolumeX size={17} /> : <Volume2 size={17} />}<span>{audio.musicMuted ? '音樂靜音' : '背景音樂'}</span></button>} />
     <section className="timer-shell">
       <div className="timer-copy focus-intro"><div><p className="timer-kicker"><span />FOCUS MODE</p><h1>這段時間，只做一件事。</h1></div><p>先說想完成什麼，也可以什麼都不填。開始後，讓時間替你守住注意力。</p></div>
       <div className="timer-workspace focus-workspace">
