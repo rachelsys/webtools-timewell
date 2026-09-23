@@ -25,7 +25,10 @@ export function MusicPanel({ preferences, permission, needsInteraction, onTrackC
   const [category, setCategory] = useState<MusicCategory>(selected.category);
   const tracks = useMemo(() => MUSIC_LIBRARY.filter(track => track.category === category), [category]);
 
-  useEffect(() => setCategory(selected.category), [selected.category]);
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setCategory(selected.category), 0);
+    return () => window.clearTimeout(timeout);
+  }, [selected.category]);
 
   const changeCategory = (nextCategory: MusicCategory) => {
     setCategory(nextCategory);

@@ -6,7 +6,8 @@ export function useTimerNotification(enabled: boolean) {
   const [permission, setPermission] = useState<NotificationPermission | 'unsupported'>('default');
 
   useEffect(() => {
-    setPermission('Notification' in window ? Notification.permission : 'unsupported');
+    const timeout = window.setTimeout(() => setPermission('Notification' in window ? Notification.permission : 'unsupported'), 0);
+    return () => window.clearTimeout(timeout);
   }, []);
 
   const requestPermission = useCallback(async () => {

@@ -73,7 +73,7 @@ export function useBackgroundAudio({ status, track, volume, muted }: Options) {
         }, 40);
       }).catch(() => setNeedsInteraction(true));
     }, cueDuration);
-  }, [clearScheduledAudio, muted, setTrack, status, track, volume]);
+  }, [clearScheduledAudio, muted, setTrack, track, volume]);
 
   const switchTrackFromGesture = useCallback(async (next: MusicTrack) => {
     const audio = setTrack(next);

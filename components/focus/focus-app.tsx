@@ -48,20 +48,23 @@ export default function FocusApp() {
   const editable = timer.state.timerStatus === 'idle';
 
   useEffect(() => {
-    const stored = loadFocusSession();
-    if (stored) {
-      lastEndTime.current = stored.timer.endTime;
-      setPurpose(stored.purpose || '');
-      setCategory(stored.category);
-      setDurationMinutes(stored.durationMinutes || 25);
-      setStartedAt(stored.startedAt);
-      setActiveStartedAt(stored.activeStartedAt);
-      setAccumulatedActiveMs(stored.accumulatedActiveMs || 0);
-      setPending(stored.pendingCompletion);
-      timer.hydrate(stored.timer);
-    }
-    setAudio(loadPersistedApp(createTimerState(definition(25))).audio);
-    setHydrated(true);
+    const timeout = window.setTimeout(() => {
+      const stored = loadFocusSession();
+      if (stored) {
+        lastEndTime.current = stored.timer.endTime;
+        setPurpose(stored.purpose || '');
+        setCategory(stored.category);
+        setDurationMinutes(stored.durationMinutes || 25);
+        setStartedAt(stored.startedAt);
+        setActiveStartedAt(stored.activeStartedAt);
+        setAccumulatedActiveMs(stored.accumulatedActiveMs || 0);
+        setPending(stored.pendingCompletion);
+        timer.hydrate(stored.timer);
+      }
+      setAudio(loadPersistedApp(createTimerState(definition(25))).audio);
+      setHydrated(true);
+    }, 0);
+    return () => window.clearTimeout(timeout);
     // Hydrate once from this device.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -73,7 +76,9 @@ export default function FocusApp() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [durationMinutes, purpose]);
 
-  if (timer.state.timerStatus === 'running' && timer.state.endTime !== null) lastEndTime.current = timer.state.endTime;
+  useEffect(() => {
+    if (timer.state.timerStatus === 'running' && timer.state.endTime !== null) lastEndTime.current = timer.state.endTime;
+  }, [timer.state.endTime, timer.state.timerStatus]);
 
   useEffect(() => {
     const justCompleted = previousStatus.current !== 'completed' && timer.state.timerStatus === 'completed';
@@ -81,15 +86,18 @@ export default function FocusApp() {
     if (!justCompleted || pending || !startedAt) return;
     const completedAt = Math.min(Date.now(), lastEndTime.current || Date.now());
     const activeMs = accumulatedActiveMs + (activeStartedAt ? Math.max(0, completedAt - activeStartedAt) : 0);
-    setPending({
-      schemaVersion: 1, startedAt, completedAt,
-      purpose: purpose.trim() || null, category,
-      plannedDurationSec: Math.round(timer.state.currentDuration / 1000),
-      actualDurationSec: Math.max(1, Math.round(activeMs / 1000)),
-      mode: 'focus', pomodoroSessionId: null, pomodoroRound: null, endedReason: 'timer_completed',
-    });
-    setActiveStartedAt(null);
+    const timeout = window.setTimeout(() => {
+      setPending({
+        schemaVersion: 1, startedAt, completedAt,
+        purpose: purpose.trim() || null, category,
+        plannedDurationSec: Math.round(timer.state.currentDuration / 1000),
+        actualDurationSec: Math.max(1, Math.round(activeMs / 1000)),
+        mode: 'focus', pomodoroSessionId: null, pomodoroRound: null, endedReason: 'timer_completed',
+      });
+      setActiveStartedAt(null);
+    }, 0);
     alarm.play();
+    return () => window.clearTimeout(timeout);
   }, [accumulatedActiveMs, activeStartedAt, alarm, category, pending, purpose, startedAt, timer.state.currentDuration, timer.state.timerStatus]);
 
   const persistenceKey = useMemo(() => JSON.stringify({

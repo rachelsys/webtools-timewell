@@ -5,14 +5,14 @@ Scope: local `main` working tree prepared for the Timewell sharing release, Clou
 
 ## Release summary
 
-**No Critical vulnerability remains in the audited dependency tree.** The production dependency audit reports zero vulnerabilities after applying npm's non-breaking security updates. The full tree reports four Moderate findings, all in the unused Drizzle development CLI's legacy esbuild chain. No application API, Server Action, database call, authentication boundary, paid third-party API, or server-side user-input sink was found.
+**No known dependency vulnerability remains in the audited tree.** Both the production-only and full npm audits report zero vulnerabilities after removing the unused Drizzle development-tool chain. No application API, Server Action, database call, authentication boundary, paid third-party API, or server-side user-input sink was found.
 
-This release is suitable to deploy with the limitations below documented. The main remaining production-hardening item is to establish and verify a consistent security-header policy on both hosting targets. That item is not a Critical blocker for this static, local-first timer release, but it should be completed before adding server endpoints or authentication.
+This release is suitable to deploy. A shared application-level security-header policy is now defined in `next.config.ts` and compiled into both deployment targets. Live response headers must still be checked after the new production deployment completes.
 
 ## Evidence
 
 - `npm audit --omit=dev`: **0 vulnerabilities**.
-- Full `npm audit`: **4 Moderate**, all through `drizzle-kit -> @esbuild-kit/esm-loader -> esbuild`.
+- Full `npm audit`: **0 vulnerabilities**.
 - `npm test`: 23/23 passing.
 - `npm run lint`: passing.
 - No `app/api/**`, `pages/api/**`, `route.ts`, or `"use server"` entry exists.
@@ -31,25 +31,9 @@ None found in the current production dependency audit or application code.
 
 ## C. Medium Issues
 
-### M-01 — Application security headers are not explicitly standardized across both hosts
+None found.
 
-- **Severity:** Medium
-- **Location:** deployment configuration; no shared header policy is currently defined
-- **Evidence:** Repository configuration does not define a common CSP, `X-Content-Type-Options`, `Referrer-Policy`, or `Permissions-Policy` policy for both Cloudflare and Vercel.
-- **Reason:** Platform defaults may differ. Explicit headers reduce the impact of a future XSS or framing regression.
-- **Attack scenario:** A future feature adds an unsafe rendering sink and browsers receive no restrictive CSP from one deployment target.
-- **Remediation:** Add and live-test an equivalent policy on both hosts. Start with `default-src 'self'`, `object-src 'none'`, `base-uri 'self'`, `frame-ancestors 'none'`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, and a restrictive Permissions Policy. Validate audio, hydration, and social images before enforcement.
-- **Must fix now:** No for the present local-only data model; yes before introducing APIs, authentication, or sensitive data.
-
-### M-02 — Legacy esbuild remains in an unused development-tool chain
-
-- **Severity:** Medium
-- **Location:** `package-lock.json`, via `drizzle-kit -> @esbuild-kit/esm-loader -> @esbuild-kit/core-utils -> esbuild`
-- **Evidence:** Full `npm audit` reports four Moderate findings. `npm audit --omit=dev` reports zero vulnerabilities. npm only proposes a forced breaking downgrade of Drizzle Kit.
-- **Reason:** The advisory concerns an exposed esbuild development server. Timewell does not invoke Drizzle Kit in production and does not expose this development server.
-- **Attack scenario:** A developer deliberately runs the affected legacy development server on a network-accessible interface and visits a malicious site.
-- **Remediation:** Keep development servers loopback-only. Remove Drizzle tooling in a separate cleanup if database tooling remains unused, or upgrade when its dependency chain is patched. Do not use `npm audit fix --force` because it proposes a breaking downgrade.
-- **Must fix now:** No. Not reachable in production.
+The previous security-header and legacy esbuild findings were remediated in the post-audit hardening pass. CSP, anti-framing, nosniff, referrer, and permissions policies now share one source of truth in `next.config.ts`; unused Drizzle/D1 tooling was removed.
 
 ## D. Low Issues
 
@@ -98,4 +82,4 @@ None found in the current production dependency audit or application code.
 - [x] Rebuild both Cloudflare and Vercel targets after the final source changes.
 - [ ] Verify all five routes, OG metadata/image, and share fallback on the final deployment.
 - [ ] Confirm the intended Vercel production URL is anonymously accessible.
-- [ ] Establish and verify equivalent security headers on both hosting targets before adding server-side or sensitive features.
+- [x] Establish equivalent application security headers in both deployment builds; live-header verification follows deployment.

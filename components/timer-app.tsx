@@ -42,12 +42,15 @@ export default function TimerApp() {
   const notification = useTimerNotification(audioPreferences.notificationsEnabled);
 
   useEffect(() => {
-    const persisted = loadPersistedApp(timer.state);
-    timer.hydrate(persisted.timer);
-    setRecentTimers(persisted.recentTimers);
-    setAudioPreferences(persisted.audio);
-    setLastNotifiedRunId(persisted.lastNotifiedRunId);
-    setHydrated(true);
+    const timeout = window.setTimeout(() => {
+      const persisted = loadPersistedApp(timer.state);
+      timer.hydrate(persisted.timer);
+      setRecentTimers(persisted.recentTimers);
+      setAudioPreferences(persisted.audio);
+      setLastNotifiedRunId(persisted.lastNotifiedRunId);
+      setHydrated(true);
+    }, 0);
+    return () => window.clearTimeout(timeout);
     // Initial hydration is intentionally performed once.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -80,7 +83,8 @@ export default function TimerApp() {
     alarm.play();
     if (timer.state.runId > lastNotifiedRunId) {
       notification.notify(timer.state.label);
-      setLastNotifiedRunId(timer.state.runId);
+      const timeout = window.setTimeout(() => setLastNotifiedRunId(timer.state.runId), 0);
+      return () => window.clearTimeout(timeout);
     }
   }, [alarm, lastNotifiedRunId, notification, timer.state.label, timer.state.runId, timer.state.timerStatus]);
 
